@@ -2,23 +2,33 @@ import asyncio
 from collections import defaultdict
 from pathlib import Path
 from typing import DefaultDict
-
 import easygui
-import uvloop
+import platform
 from tqdm import tqdm
 
 
 async def main() -> None:
-    '''This is the main function that runs the whole program'''
-    pbar = tqdm(total=nlines, desc="Sorting emails",
-                unit="lines", unit_scale=True, colour="green")
-    tasks = filereadentirefile(filenameis, pbar, nlines)
-    await asyncio.gather(*tasks)
-    pbar.close()
-    for domain in domainsset:
-        with open(f"sorteddomains/{domain}.txt", "a+") as f:
-            f.writelines(domainsset[domain])
-    return
+    Path("sorteddomains").mkdir(exist_ok=True)
+
+    domainsset: DefaultDict[str, set[str]] = defaultdict(set)
+
+    filenameis = easygui.fileopenbox(msg="Choose a file", )
+
+    nlines = ncounter(filenameis)
+    # '''This is the main function that runs the whole program'''
+    pbar = tqdm(total=nlines,
+                desc="Sorting emails",
+                unit="lines",
+                unit_scale=True,
+                colour="green")
+    # tasks = filereadentirefile(filenameis, pbar, nlines)
+    # await asyncio.gather(*tasks)
+    # pbar.close()
+    # for domain in domainsset:
+    #     with open(f"sorteddomains/{domain}.txt", "a+") as f:
+    #         f.writelines(domainsset[domain])
+    # return
+    print(filereadentirefile(filenameis, pbar, nlines))
 
 
 async def worker(email: str, pbar: tqdm) -> None:
@@ -42,9 +52,7 @@ def filereadentirefile(filenameis: str, pbar: tqdm, numoflines: int) -> set:
     with open(filenameis, "r", errors='backslashreplace') as file:
         placeholder = {asyncio.create_task(
             worker(line, pbar)) for line in tqdm(file, total=numoflines, unit_scale=True, unit=" lines", desc="Reading file & create a task for each line", colour="green")}
-
     return placeholder
-
 
 async def checkifstrcontainsat(email: str) -> bool:
     """checks if a string contains an @ symbol"""
@@ -67,14 +75,16 @@ def ncounter(filenameis: str) -> int:
 
 
 if __name__ == "__main__":
-    uvloop.install()
-
-    Path("sorteddomains").mkdir(exist_ok=True)
-
-    domainsset: DefaultDict[str, set[str]] = defaultdict(set)
-
-    filenameis = Path(easygui.fileopenbox(msg="Choose a file", ))
-
-    nlines = ncounter(filenameis)
-
-    asyncio.run(main())
+    try:
+        match platform.system():
+            case "Windows":
+                asyncio.run(main())
+            case "Linux":
+                import uvloop  # type: ignore
+                uvloop.install()
+                asyncio.run(main())
+            case _:
+                raise NotImplementedError(f"OS not supported: {platform.system()}")
+    except KeyboardInterrupt:
+        print('KeyboardInterrupt: Closing program')
+        exit(0)
